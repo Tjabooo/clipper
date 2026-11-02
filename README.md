@@ -16,7 +16,7 @@ clipper renames + moves it ─► %LOCALAPPDATA%\clipper\queue\<Game>\<Game> YYY
 ```
 
 Recording matches the Arch desktop's gpu-screen-recorder setup: a 90 s buffer at 60 fps with
-separate audio tracks for game, Discord and mic. Trimming happens in marquee, not here.
+a mixed first track (game + Discord + mic) plus separate tracks for each. Trimming happens in marquee, not here.
 
 ## Install
 
@@ -34,7 +34,7 @@ cmdkey /add:192.168.50.67 /user:HOMESERVERINO\magi /pass   # once; prompts for t
    RX 9070 XT, so `av1_texture_amf`), otherwise HEVC; NVENC AV1/HEVC on NVIDIA; QSV on Intel;
    x264 as the last resort. Override with `-Encoder <obs id> -Bitrate <kbps>`.
 4. Writes the OBS profile **Clipper**: Advanced output, MP4, CBR 30 Mbps (AV1 1080p60),
-   **keyframe every 1 s**, 3 audio tracks, replay buffer 90 s (1 GB memory cap), and writes into
+   **keyframe every 1 s**, 4 audio tracks (all mixed, game, Discord, mic), replay buffer 90 s (1 GB memory cap), and writes into
    `%LOCALAPPDATA%\clipper\recordings`.
 5. Writes the OBS scene collection **Clipper** (sources listed below).
 6. Turns on obs-websocket (port 4455, password auth; an existing password is kept).
@@ -93,17 +93,23 @@ at the next start as `Kept\Unsorted\`.
 | Source (bottom → top) | What | Audio |
 |---|---|---|
 | Desktop (fallback) | Display capture of the primary monitor (Clipper sets the monitor id on connect) | none |
-| Any fullscreen game | Game Capture, *capture any fullscreen application* | game audio → track 1 |
-| VALORANT | Game Capture of the VALORANT window (shown only while Valorant runs) | game audio → track 1 |
-| Discord | Application audio capture of `Discord.exe` | track 2 |
-| Mic | Default input device | track 3 |
+| Any fullscreen game | Game Capture, *capture any fullscreen application* | game audio → tracks 1 + 2 |
+| VALORANT | Game Capture of the VALORANT window (shown only while Valorant runs) | game audio → tracks 1 + 2 |
+| Discord | Application audio capture of `Discord.exe` | tracks 1 + 3 |
+| Mic | Default input device | tracks 1 + 4 |
 
+- Every video source is **stretched** to the canvas, so a clip shows what the monitor shows.
+  Stretched resolutions (Valorant at 2088×1440 with GPU scaling set to *Full panel*) fill the
+  16:9 clip without black bars; 16:9 games are unaffected.
 - Only one of the two game captures is visible at a time; Clipper switches them, so Valorant's
   audio isn't recorded twice.
-- Track 1 is the hooked game's own audio (Game Capture → *Capture audio*), not all desktop
+- Track 1 mixes everything (game + Discord + mic). Browsers, Discord and marquee's Clips tab
+  only play the first track, so that's the one that has to have it all. Tracks 2–4 keep game,
+  Discord and mic apart for editing.
+- The game track is the hooked game's own audio (Game Capture → *Capture audio*), not all desktop
   audio. That keeps Discord out of the game track, like the Arch setup. Other desktop sounds
   (music, browser) aren't recorded. To record everything instead, add *Audio Output Capture* to
-  the scene with only track 1 ticked, and turn off *Capture audio* on both game captures.
+  the scene with only tracks 1 and 2 ticked, and turn off *Capture audio* on both game captures.
 - Display capture is the fallback for windows Game Capture doesn't hook. It's also what the
   Notepad test records.
 - Keyframe interval 1 s: marquee trims with ffmpeg stream copy, which can only start a cut on a
@@ -161,7 +167,7 @@ real hotkey. It then waits for the clip to show up under `<share>\Kept\` and che
 - the folder and file name
 - duration ~10 s and 60 fps
 - keyframe interval ≤ 1 s
-- 3 audio tracks
+- 4 audio tracks
 - the local queue is empty
 - the OBS canvas actually has a picture
 

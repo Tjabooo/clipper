@@ -154,14 +154,16 @@ RecFilePath=$recPath
 RecFormat2=mp4
 RecEncoder=$Encoder
 RecUseRescale=false
-RecTracks=7
+RecTracks=15
 RecAudioEncoder=ffmpeg_aac
-Track1Name=Game
-Track2Name=Discord
-Track3Name=Mic
+Track1Name=All
+Track2Name=Game
+Track3Name=Discord
+Track4Name=Mic
 Track1Bitrate=192
-Track2Bitrate=160
+Track2Bitrate=192
 Track3Bitrate=160
+Track4Bitrate=160
 RecRB=true
 RecRBTime=90
 RecRBSize=1024
@@ -202,22 +204,29 @@ function New-Source($id, $name, $settings, $mixers) {
         sync = 0; flags = 0; monitoring_type = 0; balance = 0.5; private_settings = @{}; hotkeys = @{}
     }
 }
+# Audio tracks (mixers bitmask: track 1 = 1, 2 = 2, 3 = 4, 4 = 8), same layout as the Arch desktop:
+#   1 All (game + Discord + mic: what browsers, Discord and marquee's Clips tab play, since they
+#     only ever play the first track)   2 Game   3 Discord   4 Mic
 $sources = @(
     # monitor_id is filled in by the companion (primary monitor); only OBS can enumerate the ids.
     (New-Source 'monitor_capture' 'Desktop (fallback)' ([ordered]@{ method = 0; capture_cursor = $true }) 0),
     (New-Source 'game_capture' 'Any fullscreen game' ([ordered]@{
         capture_mode = 'any_fullscreen'; capture_audio = $true; capture_cursor = $false
-        anti_cheat_hook = $true; allow_transparency = $false; limit_framerate = $false; hook_rate = 1 }) 1),
+        anti_cheat_hook = $true; allow_transparency = $false; limit_framerate = $false; hook_rate = 1 }) 3),
     (New-Source 'game_capture' 'VALORANT' ([ordered]@{
         capture_mode = 'window'; window = 'VALORANT  :UnrealWindow:VALORANT-Win64-Shipping.exe'; priority = 2
         capture_audio = $true; capture_cursor = $false; anti_cheat_hook = $true
-        allow_transparency = $false; limit_framerate = $false; hook_rate = 1 }) 1),
+        allow_transparency = $false; limit_framerate = $false; hook_rate = 1 }) 3),
     (New-Source 'wasapi_process_output_capture' 'Discord' ([ordered]@{
-        window = 'Discord:Chrome_WidgetWin_1:Discord.exe'; priority = 2 }) 2),
-    (New-Source 'wasapi_input_capture' 'Mic' ([ordered]@{ device_id = 'default'; use_device_timing = $false }) 4)
+        window = 'Discord:Chrome_WidgetWin_1:Discord.exe'; priority = 2 }) 5),
+    (New-Source 'wasapi_input_capture' 'Mic' ([ordered]@{ device_id = 'default'; use_device_timing = $false }) 9)
 )
 # Bottom to top. The companion shows exactly one of the two game captures (VALORANT while it runs).
 $visibleAtStart = @{ 'Desktop (fallback)' = $true; 'Any fullscreen game' = $true; 'VALORANT' = $false; 'Discord' = $true; 'Mic' = $true }
+# Video sources are STRETCHED to the canvas (OBS_BOUNDS_STRETCH = 1), not fitted (2 = scale inner):
+# the clip shows exactly what the monitor shows. Stretched-res Valorant (2088x1440 on a 16:9 panel
+# with GPU scaling "Full panel") fills the 16:9 clip instead of getting black bars on both sides;
+# 16:9 games and the desktop are unaffected because their aspect already matches the canvas.
 $items = @()
 $n = 0
 foreach ($s in $sources) {
@@ -225,7 +234,7 @@ foreach ($s in $sources) {
     $items += [ordered]@{
         name = $s.name; source_uuid = $s.uuid; id = $n; visible = $visibleAtStart[$s.name]; locked = $true
         rot = 0.0; pos = @{ x = 0.0; y = 0.0 }; scale = @{ x = 1.0; y = 1.0 }; align = 5
-        bounds_type = 2; bounds_align = 0; bounds = @{ x = [double]$baseW; y = [double]$baseH }
+        bounds_type = 1; bounds_align = 0; bounds = @{ x = [double]$baseW; y = [double]$baseH }
         crop_left = 0; crop_top = 0; crop_right = 0; crop_bottom = 0
         scale_filter = 'disable'; blend_method = 'default'; blend_type = 'normal'
         group_item_backup = $false; private_settings = @{}

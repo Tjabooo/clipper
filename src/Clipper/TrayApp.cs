@@ -181,7 +181,7 @@ sealed class TrayApp : ApplicationContext
         UpdateStatus();
     }
 
-    // Exactly one game capture is visible, so game audio on track 1 isn't doubled when both hook Valorant.
+    // Exactly one game capture is visible, so game audio (tracks 1 + 2) isn't doubled when both hook Valorant.
     async Task ShowValorantSourceAsync(bool valorant)
     {
         try

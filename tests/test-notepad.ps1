@@ -214,7 +214,7 @@ if ($clip.BaseName -notmatch "^$([regex]::Escape($clip.Directory.Name)) \d{4}-\d
 if ($video.Seconds -lt $Seconds - 2 -or $video.Seconds -gt $Seconds + 4) { $fail += "duration $($video.Seconds) s is not ~$Seconds s" }
 if ($fps -lt 58 -or $fps -gt 62) { $fail += "fps $fps is not 60" }
 if ($gop -gt 1.1) { $fail += "keyframe interval $gop s > 1 s" }
-if ($audio.Count -ne 3) { $fail += "$($audio.Count) audio tracks, expected 3" }
+if ($audio.Count -ne 4) { $fail += "$($audio.Count) audio tracks, expected 4 (all, game, Discord, mic)" }
 if ($queued.Count -ne 0) { $fail += 'local queue not empty' }
 if ($coverage -lt 90) { $fail += "OBS canvas only $coverage% covered: display/game capture isn't producing a picture" }
 if ($fail) { $fail | ForEach-Object { Write-Host "FAIL: $_" -ForegroundColor Red }; exit 1 }
