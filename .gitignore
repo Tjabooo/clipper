@@ -1,0 +1,6 @@
+bin/
+obj/
+.vs/
+*.user
+# transcripts from scripts re-run outside an app package
+.Clipper-*.log
