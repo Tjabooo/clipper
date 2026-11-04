@@ -1,0 +1,40 @@
+// clipper's bundled look. Change these to match your theme.
+$bg:     #120d0a;
+$panel:  #1c1612;
+$line:   #3a2d24;
+$fg:     #d8cbbf;
+$dim:    #7a675a;
+$accent: #ff8c1a;
+$gold:   #ffc857;
+$red:    #e5484d;
+
+* { all: unset; font-family: "JetBrainsMono Nerd Font", monospace; }
+
+.archive {
+  background-color: rgba(18, 13, 10, 0.95);
+  border: 1px solid $line;
+  border-top: 3px solid $accent;
+  padding: 14px 16px;
+  color: $fg;
+}
+.head     { margin-bottom: 4px; }
+.brand-sm { font-size: 13px; font-weight: 800; color: $accent; }
+.count    { font-size: 11px; font-weight: 700; color: $gold; }
+.hint     { font-size: 10px; color: $dim; margin-top: 8px; }
+.empty    { font-size: 11px; color: $dim; margin: 18px 0; }
+.clips    { margin-top: 12px; }
+.clip     { background-color: $panel; border-left: 3px solid $accent; padding: 8px; }
+.thumb    { border: 1px solid $line; }
+.clip-game { font-size: 13px; font-weight: 700; }
+.clip-meta { font-size: 10px; color: $dim; margin-top: 2px; }
+.btn {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border: 1px solid $line;
+  color: $fg;
+}
+.btn:hover      { border-color: $accent; color: $accent; }
+.btn.keep       { color: $bg; background-color: $accent; border-color: $accent; }
+.btn.keep:hover { background-color: $gold; border-color: $gold; color: $bg; }
+.btn.drop:hover { border-color: $red; color: $red; }

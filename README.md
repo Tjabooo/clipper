@@ -1,194 +1,139 @@
 # Clipper
 
-A lightweight Medal replacement for Windows. OBS keeps a 90 s replay buffer running while a game
-is running. **Alt+F9** saves it, and the clip is copied to the home server's `Clips` share, where
-marquee's Clips tab picks it up within 30 s.
+A lightweight **Medal / ShadowPlay replacement**: a replay buffer that's always recording, one key
+to save the last 90 seconds, a review queue, a trimmer, and an optional move to your home server.
+It works with any game and needs no account or cloud.
+
+- **[Linux](#linux)**: gpu-screen-recorder replay buffer, an eww review overlay, an mpv trimmer with
+  Discord-size exports, and automatic retention. Below.
+- **[Windows](windows/README.md)**: an OBS replay buffer plus a small tray app that saves clips on a
+  hotkey and ships them to a network share.
+
+Both record the same way: track 1 is a **mix of everything** (game + voice chat + mic), because
+browsers, Discord and phones only ever play the first track. Each source then gets its own track
+for editing later. Clips can land on a share that [Marquee](https://github.com/Tjabooo/marquee)
+watches, which gives you a phone-friendly Clips tab with lossless trimming and share links.
+
+## Linux
 
 ```
-Alt+F9 ─► clipper.exe ─► obs-websocket: SaveReplayBuffer
-                              │
-OBS writes %LOCALAPPDATA%\clipper\recordings\Replay ….mp4
-                              │  ReplayBufferSaved
-clipper renames + moves it ─► %LOCALAPPDATA%\clipper\queue\<Game>\<Game> YYYY-MM-DD HH-MM-SS.mp4
-                              │  copy as .part → verify size → rename → verify → delete local
-                              ▼
-\\192.168.50.67\Clips\Kept\<Game>\<Game> YYYY-MM-DD HH-MM-SS.mp4   → marquee
+clipper-replay.service ── gpu-screen-recorder: 90 s in RAM, hardware encoder
+        │  SUPER+ALT+C  (clipper save)
+        ▼
+~/Videos/Clips/Replay_….mp4 ─ ingest: index moved to the front (instant web playback),
+        │                     tagged with the focused game, thumbnail, notification
+        ▼
+review overlay (SUPER+ALT+A)  KEEP → Kept/<game>/ ─┐
+                              TRIM → mpv trimmer ──┼─► server_dir (verified copy, then local deleted)
+                              SHARE → H.264 copy ──┘   clipboard holds the file for Discord
+                              ✕ → trash
+hourly: unreviewed clips older than retention_days → trash; trash older than trash_days → gone
 ```
 
-Recording matches the Arch desktop's gpu-screen-recorder setup: a 90 s buffer at 60 fps with
-a mixed first track (game + Discord + mic) plus separate tracks for each. Trimming happens in marquee, not here.
+### Requirements
 
-## Install
+- [gpu-screen-recorder](https://git.dec05eba.com/gpu-screen-recorder/about/) **6+** (it includes
+  `gsr-cli`). It works with AMD, Intel and NVIDIA, on Wayland and X11.
+- Python 3.11+, ffmpeg, mpv (0.38+ for the trimmer's name prompt), libnotify, PipeWire or PulseAudio.
+- Optional: [eww](https://github.com/elkowar/eww) for the review overlay, wl-clipboard for
+  copy-to-Discord, Hyprland or sway so clips are named after the game.
 
-```powershell
-cmdkey /add:192.168.50.67 /user:HOMESERVERINO\magi /pass   # once; prompts for the password
-.\install.ps1                                               # 1080p60
-.\install.ps1 -Native                                       # record at the monitor's resolution
+Arch: `sudo pacman -S --needed gpu-screen-recorder python ffmpeg mpv libnotify wl-clipboard` (eww: AUR)
+
+### Install
+
+```sh
+git clone https://github.com/Tjabooo/clipper.git
+cd clipper/linux
+./install.sh
 ```
 
-`install.ps1` is safe to re-run and needs no admin rights. Each run:
+It installs `clipper` to `~/.local/bin`, creates `~/.config/clipper/config.toml`, and starts
+`clipper-replay.service` (it starts with your graphical session) plus an hourly
+`clipper-prune.timer`. Then bind two keys. For Hyprland:
 
-1. Installs OBS with winget if it's missing (OBS 32.2.2 was already here).
-2. Backs up the current OBS settings to `%LOCALAPPDATA%\clipper\obs-backup\<timestamp>\`.
-3. Detects the GPU and picks its best hardware encoder: AMD AMF AV1 on RX 7000/9000 (here: an
-   RX 9070 XT, so `av1_texture_amf`), otherwise HEVC; NVENC AV1/HEVC on NVIDIA; QSV on Intel;
-   x264 as the last resort. Override with `-Encoder <obs id> -Bitrate <kbps>`.
-4. Writes the OBS profile **Clipper**: Advanced output, MP4, CBR 30 Mbps (AV1 1080p60),
-   **keyframe every 1 s**, 4 audio tracks (all mixed, game, Discord, mic), replay buffer 90 s (1 GB memory cap), and writes into
-   `%LOCALAPPDATA%\clipper\recordings`.
-5. Writes the OBS scene collection **Clipper** (sources listed below).
-6. Turns on obs-websocket (port 4455, password auth; an existing password is kept).
-7. Builds the companion with `dotnet publish` into `%LOCALAPPDATA%\clipper\bin` (installs the
-   .NET 8 SDK with winget if needed; at runtime it only needs the Windows Desktop 8 runtime).
-8. Registers the **Clipper** Task Scheduler task (runs at logon, restarts on failure) and starts it.
-
-If OBS is open, the script stops, because OBS would overwrite the new settings when it exits.
-Close OBS first, or pass `-Force` to kill it.
-
-> **Running it from an app (Claude desktop, Store-installed Windows Terminal, …).** Processes
-> started by an MSIX-packaged app have new `AppData` folders silently redirected into the
-> package's private storage, where nothing else can see them. The scripts detect this and re-run
-> themselves outside the package through a one-shot scheduled task, then show you its output.
-
-## Using it
-
-| | |
-|---|---|
-| **Save a clip** | **Alt+F9**. You get a toast when the clip reaches the share ("Clip saved → marquee"). |
-| Change the hotkey | Edit `"hotkey"` in `%LOCALAPPDATA%\clipper\config.json` (e.g. `"Ctrl+Shift+F9"`), then Quit from the tray and run `Start-ScheduledTask Clipper` (or log in again). |
-| Tray icon | grey = idle, red = buffer recording, amber = paused or waiting for OBS |
-| Tray menu | Save clip · Open queue folder · Open marquee · Open log · Pause clipping · Quit |
-
-**When the buffer runs.** OBS is started minimized to the tray, and the buffer runs only while a
-game is running:
-
-- **Valorant**: whenever `VALORANT-Win64-Shipping.exe` is running.
-- **Any other game**: once a non-ignored app has been fullscreen in the foreground. A fullscreen
-  window is one with no title bar that covers its monitor. The buffer then keeps running until
-  that process exits, plus 15 s (`stopGraceSeconds`).
-
-**Pause clipping** stops the buffer and stops relaunching OBS until you resume. Quit stops the
-buffer if Clipper started it and leaves OBS in the tray. If you close OBS while Clipper is running
-and not paused, Clipper reopens it within a minute.
-
-**Clip names.** When you press the hotkey, the clip is named after the foreground app. If the
-foreground app isn't a game (for example Discord or a browser from the ignore list), it is named
-after the running game instead, and if no game is running it goes to `Desktop`. The name comes
-from:
-
-1. the `games` map in config.json (Valorant → `Valorant`; GTA V → `Grand-Theft-Auto-V`, which
-   matches the folder the Arch desktop already uses), else
-2. the exe's FileDescription, else its ProductName, else the exe name. A FileDescription that is
-   just a file name like `Notepad.exe` is skipped.
-
-**Never lose a clip.** A clip leaves the local queue only after the copy on the share has the
-same size. It's copied as `….mp4.part` first, which marquee ignores, so marquee never indexes a
-half-written file. If the share is unreachable, clips wait in `%LOCALAPPDATA%\clipper\queue\<Game>\`
-and the queue is retried every 60 s (and right after each new save). You get one "Server
-unreachable" toast per outage. Replays OBS saved while the companion wasn't running are picked up
-at the next start as `Kept\Unsorted\`.
-
-## OBS setup (profile + scene collection "Clipper")
-
-| Source (bottom → top) | What | Audio |
-|---|---|---|
-| Desktop (fallback) | Display capture of the primary monitor (Clipper sets the monitor id on connect) | none |
-| Any fullscreen game | Game Capture, *capture any fullscreen application* | game audio → tracks 1 + 2 |
-| VALORANT | Game Capture of the VALORANT window (shown only while Valorant runs) | game audio → tracks 1 + 2 |
-| Discord | Application audio capture of `Discord.exe` | tracks 1 + 3 |
-| Mic | Default input device | tracks 1 + 4 |
-
-- Every video source is **stretched** to the canvas, so a clip shows what the monitor shows.
-  Stretched resolutions (Valorant at 2088×1440 with GPU scaling set to *Full panel*) fill the
-  16:9 clip without black bars; 16:9 games are unaffected.
-- Only one of the two game captures is visible at a time; Clipper switches them, so Valorant's
-  audio isn't recorded twice.
-- Track 1 mixes everything (game + Discord + mic). Browsers, Discord and marquee's Clips tab
-  only play the first track, so that's the one that has to have it all. Tracks 2–4 keep game,
-  Discord and mic apart for editing.
-- The game track is the hooked game's own audio (Game Capture → *Capture audio*), not all desktop
-  audio. That keeps Discord out of the game track, like the Arch setup. Other desktop sounds
-  (music, browser) aren't recorded. To record everything instead, add *Audio Output Capture* to
-  the scene with only tracks 1 and 2 ticked, and turn off *Capture audio* on both game captures.
-- Display capture is the fallback for windows Game Capture doesn't hook. It's also what the
-  Notepad test records.
-- Keyframe interval 1 s: marquee trims with ffmpeg stream copy, which can only start a cut on a
-  keyframe, so every trim starts at most 1 s early.
-
-### Valorant / Vanguard
-
-Clipper never injects into or reads the memory of any process. It uses the window manager
-(foreground window, window rectangle), the system process list, and OBS's own Game Capture,
-which Riot permits. Exes in the `games` map, Valorant included, are never even opened. For
-other games, Clipper opens a query-limited handle to read the exe path, then reads the version
-info from the exe file on disk.
-
-## Config — `%LOCALAPPDATA%\clipper\config.json`
-
-| key | default | |
-|---|---|---|
-| `hotkey` | `Alt+F9` | `Alt`/`Ctrl`/`Shift`/`Win` + a key name (`F9`, `S`, `1`, …) |
-| `share` | `\\192.168.50.67\Clips` | clips go to `<share>\Kept\<Game>\` |
-| `marqueeUrl` | `http://192.168.50.67:8080` | tray → Open marquee |
-| `clipOtherGames` | `true` | `false`: only Valorant runs the buffer |
-| `onlyListedGames` | `false` | `true`: only exes in `games` (and Valorant) count as games |
-| `games` | Valorant, GTA V, CS2, … | exe → folder name |
-| `ignore` | browsers, Discord, explorer, launchers, … | never treated as games |
-| `fallbackGame` | `Desktop` | folder when no game is focused or running |
-| `retrySeconds` | `60` | queue retry interval |
-| `stopGraceSeconds` | `15` | buffer keeps running this long after the game exits |
-| `obs.*` | | websocket host/port/password (empty password = read OBS's own), OBS path, profile/collection/scene names, `launch` |
-
-Restart the companion after editing. Log: `%LOCALAPPDATA%\clipper\log.txt` (rotates at 5 MB).
-
-## Restoring OBS settings
-
-```powershell
-.\restore-obs.ps1                          # back to how OBS was before Clipper was first installed
-.\restore-obs.ps1 -Backup 20261102-121041  # or a specific backup (folder name)
-.\uninstall.ps1                            # remove the task + companion, then restore OBS
+```ini
+bind = SUPER ALT, C, exec, ~/.local/bin/clipper save     # save the last 90 s
+bind = SUPER ALT, A, exec, ~/.local/bin/clipper toggle   # review overlay
 ```
 
-`restore-obs.ps1` closes Clipper and OBS. It then restores the backed-up profiles, scene
-collections, `global.ini`, `user.ini` and obs-websocket config, and removes the Clipper profile
-and collection. With no `-Backup`, it uses the **oldest** backup in
-`%LOCALAPPDATA%\clipper\obs-backup\`. `uninstall.ps1` keeps config.json, the log, the backups and
-any clips still in the queue, and warns if any clips are left there.
+For sway: `bindsym $mod+Alt+c exec ~/.local/bin/clipper save`.
 
-## Test
+### Settings (`~/.config/clipper/config.toml`)
 
-```powershell
-.\tests\test-notepad.ps1
+See [config.example.toml](linux/config.example.toml). The ones you'll most likely change:
+
+| Setting | Default | |
+| --- | --- | --- |
+| `record.window` | `screen` | Which monitor: `DP-1` etc. (`gpu-screen-recorder --list-capture-options`) |
+| `record.bitrate_kbps` | `0` (quality preset) | E.g. `50000` for a constant 50 Mbit/s. AV1 at 80–120 Mbit/s is visually lossless for fast shooters. |
+| `record.codec` | `auto` | `h264` for widest playback, `av1` for the best quality per bit |
+| `record.mix`, `record.tracks` | output + mic | PipeWire sources. Use separate sinks to keep voice chat apart from the game. |
+| `volume.<source>` | | Clip-only level in %, e.g. `default_input = 110` to hear yourself better |
+| `clips.server_dir` | empty | Kept clips and trims move here (an SMB/NFS mount) |
+| `clips.retention_days` | `1` | Unreviewed clips older than this go to the trash |
+| `clips.discord_mb` | `10` | Size target of the trimmer's **D** export |
+
+Restart after changing `[record]`: `systemctl --user restart clipper-replay`.
+
+### Reviewing and trimming
+
+`clipper toggle` opens the overlay on the focused monitor, with your six newest unreviewed clips:
+
+- click the thumbnail to play (every track mixed)
+- **KEEP** moves the clip to `Kept/<game>/`, and to the server if one is set
+- **TRIM** opens the trimmer
+- **SHARE** makes an H.264 copy with all audio in one track and puts it on the clipboard: paste it
+  into Discord
+- **✕** moves the clip to the trash
+
+The trimmer is mpv with five keys: **I** start, **O** end, **C** clear, **E** export at full
+quality, and **D** export to fit Discord's upload limit (the bitrate comes from the length, and
+the resolution steps down when it gets thin). Each export asks for a name, lands in
+`Trimmed Clips/`, and is copied to the clipboard. Then it asks what to do with the original:
+**K** keep, **X** trash, **Esc** later.
+
+The overlay is an eww window called `clipper`. If one of your own eww configs defines it, clipper
+uses that one (copy the widgets from [linux/eww](linux/eww) to theme it); otherwise it uses the
+bundled one. To pick a config yourself, set `CLIPPER_EWW`.
+
+Without eww: `clipper list`, then `clipper keep|trim|share|discard <id>`.
+
+### Waybar
+
+```jsonc
+"custom/clip": {
+  "exec": "~/.local/bin/clipper status", "return-type": "json",
+  "interval": 60, "signal": 12,
+  "on-click": "~/.local/bin/clipper toggle", "on-click-right": "~/.local/bin/clipper save"
+},
+"custom/clips-pending": { "exec": "~/.local/bin/clipper count", "return-type": "json", "interval": 60, "signal": 12 }
 ```
 
-The test opens Notepad, starts the replay buffer, keeps Notepad focused for 10 s and presses the
-real hotkey. It then waits for the clip to show up under `<share>\Kept\` and checks:
+clipper sends `SIGRTMIN+12` when anything changes, so the modules update right away.
 
-- the folder and file name
-- duration ~10 s and 60 fps
-- keyframe interval ≤ 1 s
-- 4 audio tracks
-- the local queue is empty
-- the OBS canvas actually has a picture
+### Moving clips to a server
 
-It saves that OBS frame to `%TEMP%\clipper-test-frame.png`. The test starts and stops the buffer
-itself over obs-websocket; Clipper leaves alone any buffer it didn't start.
+Set `clips.server_dir` to a mounted share, e.g. with a systemd automount in `/etc/fstab`:
 
-## Why C# and not Python
+```
+//myserver/Clips  /mnt/clips  cifs  credentials=/etc/clips.cred,uid=1000,gid=1000,noauto,x-systemd.automount,x-systemd.idle-timeout=10min,_netdev  0 0
+```
 
-The Windows Desktop 8 runtime was already installed here, and there is no Python 3.12 on this
-PC. A .NET tray app is a single small exe, with no interpreter or venv that can break at login.
-The tray icon, toasts (`NotifyIcon`), the global hotkey (`RegisterHotKey`, not a keyboard hook),
-exe version info and the websocket client are all built into .NET, so there are no NuGet
-packages.
+Kept clips and trims are copied to the server as a `.part` file, synced, checked for size, renamed,
+and only then deleted locally. If the server is asleep, they stay local and the hourly timer tries
+again; a sleeping server never hangs the save. If the clipboard still holds a trim that just
+moved, the clipboard is updated to point at the server copy.
 
-## Troubleshooting
+### Notes
 
-- **No toast, nothing on the share**: check the log. "obs-websocket: authentication failed"
-  means the password in OBS (Tools → WebSocket Server Settings) doesn't match `obs.password`.
-  Leave `obs.password` empty to use OBS's own setting.
-- **"Hotkey unavailable" toast**: another app owns that key. Pick another `hotkey`.
-- **Windows Firewall prompt for OBS**: obs-websocket listens on all interfaces. Clipper only
-  needs localhost, so you can choose *Cancel*.
-- **Clips stuck in the queue**: the share needs a saved login (`cmdkey /list`). Re-run the
-  `cmdkey /add` line above.
+- gpu-screen-recorder writes the MP4 index at the end of the file. On ingest, clipper moves it to
+  the front with a lossless stream copy (low priority), so browsers can start a 1 GB clip
+  instantly.
+- Monitor capture (`screen`, `DP-1`) uses gpu-screen-recorder's KMS helper, which the package sets
+  up; with `window = "portal"` your desktop asks which screen to share instead.
+- Retention never touches `Kept/` or `Trimmed Clips/`.
+
+## License
+
+MIT

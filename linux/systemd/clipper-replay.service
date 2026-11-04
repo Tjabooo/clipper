@@ -1,0 +1,12 @@
+[Unit]
+Description=clipper replay buffer (gpu-screen-recorder)
+PartOf=graphical-session.target
+After=graphical-session.target pipewire-pulse.service
+
+[Service]
+ExecStart=%h/.local/bin/clipper record
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target

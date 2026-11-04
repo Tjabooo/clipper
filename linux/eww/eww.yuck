@@ -1,0 +1,37 @@
+;; clipper's review overlay (`clipper toggle`). clipper uses this config unless one of your own eww
+;; configs defines a `clipper` window: copy these widgets into yours to give it your theme.
+(deflisten clips
+  :initial '{"count":0,"clips":[]}'
+  `$HOME/.local/bin/clipper stream`)
+
+(defwidget clipcard [c]
+  (box :class "clip" :space-evenly false :spacing 12
+    (eventbox :cursor "pointer" :onclick "$HOME/.local/bin/clipper play ${c.id} &"
+      (image :class "thumb" :path "${c.thumb}" :image-width 192 :image-height 108))
+    (box :orientation "v" :space-evenly false :hexpand true
+      (label :class "clip-game" :xalign 0 :limit-width 22 :text "${c.game}")
+      (label :class "clip-meta" :xalign 0 :text "${c.age}  ·  ${c.dur}  ·  ${c.tracks} tracks")
+      (box :class "clip-btns" :space-evenly false :spacing 6 :valign "end" :vexpand true
+        (button :class "btn keep"  :onclick "$HOME/.local/bin/clipper keep ${c.id} &" "KEEP")
+        (button :class "btn"       :onclick "$HOME/.local/bin/clipper trim ${c.id} &" "TRIM")
+        (button :class "btn"       :onclick "$HOME/.local/bin/clipper share ${c.id} &" "SHARE")
+        (button :class "btn drop"  :onclick "$HOME/.local/bin/clipper discard ${c.id} &" "✕")))))
+
+(defwindow clipper
+  :monitor 0
+  :geometry (geometry :anchor "top right" :x "16px" :y "60px" :width "520px")
+  :stacking "overlay"
+  :exclusive false
+  :focusable false
+  :namespace "clipper"
+  (box :class "archive" :orientation "v" :space-evenly false
+    (box :class "head" :space-evenly false
+      (label :class "brand-sm" :text "CLIPS")
+      (box :hexpand true)
+      (label :class "count" :text "${clips.count} TO REVIEW"))
+    (box :class "clips" :orientation "v" :space-evenly false :spacing 10
+      (for c in {clips.clips}
+        (clipcard :c c)))
+    (label :class "empty" :visible {clips.count == 0} :text "nothing waiting · save a clip with clipper save")
+    (label :class "hint" :xalign 0
+           :text "click a thumbnail to play · SHARE mixes all tracks and copies it for Discord")))

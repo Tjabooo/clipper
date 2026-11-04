@@ -80,7 +80,7 @@ sealed class ClipShipper(Config cfg, Action<string, string, bool> notify)
             {
                 var dest = await Task.Run(() => Upload(file, game));
                 PendingCount--;
-                notify("Clip saved → marquee", $@"Kept\{game}\{Path.GetFileName(dest)}", false);
+                notify("Clip saved → share", $@"Kept\{game}\{Path.GetFileName(dest)}", false);
             }
             catch (Exception ex)
             {

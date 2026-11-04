@@ -1,0 +1,37 @@
+# clipper settings (~/.config/clipper/config.toml). After changing [record]:
+#   systemctl --user restart clipper-replay
+
+[record]
+seconds = 90              # length of the replay buffer, and of every saved clip
+window = "screen"         # gpu-screen-recorder -w: "screen", a monitor ("DP-1"), or "portal"
+                          #   (list them: gpu-screen-recorder --list-capture-options)
+fps = 60
+codec = "auto"            # auto, h264, hevc, av1, ...
+bitrate_kbps = 0          # 0 = use `quality`; else constant bitrate, e.g. 50000 (50 Mbit/s)
+quality = "very_high"     # medium, high, very_high, ultra
+# Audio. Track 1 mixes everything in `mix` (it's the only track browsers, Discord and phones play),
+# then each source in `tracks` gets a track of its own, for editing later. Names are PipeWire/Pulse
+# sources (`pactl list short sources`), or default_output (what you hear) / default_input (your mic).
+# gpu-screen-recorder also takes "app:Discord" style entries.
+mix = ["default_output", "default_input"]
+tracks = ["default_output", "default_input"]
+# Anything else for gpu-screen-recorder, e.g. ["-tune", "performance", "-cursor", "no"]
+extra_args = []
+
+[volume]
+# Clip-only levels in percent, set on the recorder's own capture streams (live audio is untouched):
+# default_input = 110
+
+[clips]
+dir = "~/Videos/Clips"
+retention_days = 1        # unreviewed clips older than this go to the trash (Kept/ never does)
+trash_days = 7            # clips in the trash for longer are deleted for good
+discord_mb = 10           # the trimmer's D export aims for 90 % of this (Discord's upload limit)
+# Move Kept/ and Trimmed Clips/ here once they're kept: e.g. an SMB/NFS mount on your home server,
+# such as the folder Marquee's Clips tab watches. Empty = they stay in `dir`.
+server_dir = ""
+
+[ui]
+sounds = true             # freedesktop theme sounds; override with sound_saved / sound_relay / sound_warn = "/path.wav"
+waybar_signal = 12        # Waybar custom modules refresh on SIGRTMIN+12 (0 = don't signal)
+not_games = []            # extra window classes that never name a clip (terminals, browsers... are built in)

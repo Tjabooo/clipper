@@ -42,7 +42,7 @@ sealed class TrayApp : ApplicationContext
         statusItem = new ToolStripMenuItem("Starting…") { Enabled = false };
         var saveItem = new ToolStripMenuItem($"Save clip ({cfg.Hotkey})", null, (_, _) => SaveClip());
         queueItem = new ToolStripMenuItem("Open queue folder", null, (_, _) => Open(Paths.Queue));
-        var marqueeItem = new ToolStripMenuItem("Open marquee", null, (_, _) => Open(cfg.MarqueeUrl));
+        var marqueeItem = new ToolStripMenuItem("Open Marquee", null, (_, _) => Open(cfg.MarqueeUrl)) { Visible = cfg.MarqueeUrl.Length > 0 };
         var logItem = new ToolStripMenuItem("Open log", null, (_, _) => Open(Paths.Log));
         pauseItem = new ToolStripMenuItem("Pause clipping", null, (_, _) => TogglePause());
         var quitItem = new ToolStripMenuItem("Quit", null, (_, _) => Quit());
@@ -55,7 +55,7 @@ sealed class TrayApp : ApplicationContext
             pauseItem, quitItem,
         });
         tray = new NotifyIcon { Icon = warnIcon, Text = "Clipper", ContextMenuStrip = menu, Visible = true };
-        tray.DoubleClick += (_, _) => Open(cfg.MarqueeUrl);
+        tray.DoubleClick += (_, _) => Open(cfg.MarqueeUrl.Length > 0 ? cfg.MarqueeUrl : cfg.Share.Length > 0 ? cfg.Share : Paths.Queue);
 
         obs = new ObsClient(cfg.Obs);
         obs.ConnectionChanged += up =>

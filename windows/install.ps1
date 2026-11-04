@@ -5,14 +5,14 @@
   (winget may ask for elevation if it has to install OBS or the .NET SDK).
 
 .EXAMPLE
-  .\install.ps1                       # 1080p60, \\192.168.50.67\Clips
+  .\install.ps1 -Share \\myserver\Clips          # 1080p60
   .\install.ps1 -Native               # record at the monitor's native resolution
   .\install.ps1 -Encoder h265_texture_amf -Bitrate 40000
 #>
 [CmdletBinding()]
 param(
-    [string]$Share = '\\192.168.50.67\Clips',
-    [string]$MarqueeUrl = 'http://192.168.50.67:8080',
+    [string]$Share,            # \\server\share the clips go to (<share>\Kept\<Game>\); kept from the last run
+    [string]$MarqueeUrl,       # optional: a page the tray's "Open Marquee" opens (e.g. http://myserver:8080)
     [switch]$Native,
     [string]$Encoder,          # override the detected OBS encoder id
     [int]$Bitrate,             # kbps; default depends on encoder and resolution
@@ -274,7 +274,11 @@ if (-not ($dotnetSdks -match '^(8|9|10)\.')) {
 Step "Building the companion into $Bin"
 & dotnet publish (Join-Path $PSScriptRoot 'src\Clipper\Clipper.csproj') -c Release -o $Bin --nologo -v q | Out-Host
 if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
-& (Join-Path $Bin 'clipper.exe') --init-config --share $Share --marquee $MarqueeUrl | Out-Null
+& (Join-Path $Bin 'clipper.exe') --init-config --share "$Share" --marquee "$MarqueeUrl" | Out-Null
+$configured = (Get-Content (Join-Path $Root 'config.json') -Raw | ConvertFrom-Json).share
+if (-not $configured) {
+    Write-Warning 'No share set yet: clips will wait in the queue. Run again with -Share \\server\share (any SMB share or folder).'
+} else { $Share = $configured }
 
 if (-not $NoAutostart) {
     Step 'Registering the Clipper logon task'
@@ -286,10 +290,10 @@ if (-not $NoAutostart) {
                     -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew `
                     -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
     Register-ScheduledTask -TaskName $Name -Action $action -Trigger $trigger -Principal $principal -Settings $settings `
-        -Description 'Clipper: OBS replay buffer companion (starts OBS minimized, Alt+F9 saves a clip to marquee)' -Force | Out-Null
+        -Description 'Clipper: OBS replay buffer companion (starts OBS minimized, Alt+F9 saves a clip to your share)' -Force | Out-Null
 }
 
-if (-not (Test-Path $Share)) {
+if ($Share -and -not (Test-Path $Share)) {
     Write-Warning "$Share is not reachable right now. Clips will wait in $Root\queue until it is (save a login with: cmdkey /add:<server> /user:<user> /pass)."
 }
 

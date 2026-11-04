@@ -1,0 +1,6 @@
+[Unit]
+Description=clipper retention (trash unreviewed clips older than retention_days, retry server moves)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/clipper prune

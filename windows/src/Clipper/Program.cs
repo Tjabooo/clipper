@@ -15,8 +15,9 @@ static class Program
             {
                 switch (args[i])
                 {
-                    case "--share": cfg.Share = args[i + 1]; break;
-                    case "--marquee": cfg.MarqueeUrl = args[i + 1]; break;
+                    // empty = keep what's there (re-running install.ps1 without -Share)
+                    case "--share" when args[i + 1].Length > 0: cfg.Share = args[i + 1]; break;
+                    case "--marquee" when args[i + 1].Length > 0: cfg.MarqueeUrl = args[i + 1]; break;
                 }
             }
             cfg.Save();
