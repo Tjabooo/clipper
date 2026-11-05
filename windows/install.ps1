@@ -7,13 +7,20 @@
 .EXAMPLE
   .\install.ps1 -Share \\myserver\Clips          # 1080p60
   .\install.ps1 -Native               # record at the monitor's native resolution
-  .\install.ps1 -Encoder h265_texture_amf -Bitrate 40000
+  .\install.ps1 -Quality high         # compact, balanced (default), high, max, smooth
+  .\install.ps1 -Bench smooth         # measure this PC and pick (quality, smooth, balanced, small)
+  .\install.ps1 -Encoder h265_texture_amf -Bitrate 40000 -Fps 120
 #>
 [CmdletBinding()]
 param(
     [string]$Share,            # \\server\share the clips go to (<share>\Kept\<Game>\); kept from the last run
     [string]$MarqueeUrl,       # optional: a page the tray's "Open Marquee" opens (e.g. http://myserver:8080)
     [switch]$Native,
+    [ValidateSet('', 'compact', 'balanced', 'high', 'max', 'smooth')]
+    [string]$Quality,          # a preset (see README); -Fps / -Bitrate / -Native still override it
+    [ValidateSet('', 'quality', 'smooth', 'balanced', 'small')]
+    [string]$Bench,            # run bench\clipperbench.py while you play and use what it picks
+    [int]$Fps,                 # frame rate (default 60; smooth: 120; capped at the refresh rate)
     [string]$Encoder,          # override the detected OBS encoder id
     [int]$Bitrate,             # kbps; default depends on encoder and resolution
     [switch]$Force,            # close a running OBS instead of stopping
@@ -113,24 +120,98 @@ $encoders = @{
     'nvenc' = @{ av1 = 'obs_nvenc_av1_tex'; hevc = 'obs_nvenc_hevc_tex' }
     'qsv'   = @{ av1 = 'obs_qsv11_av1';     hevc = 'obs_qsv11_hevc' }
 }
+$encoders.amf.h264 = 'h264_texture_amf'; $encoders.nvenc.h264 = 'obs_nvenc_h264_tex'; $encoders.qsv.h264 = 'obs_qsv11_v2'
+
+# --- Resolution and refresh rate ---------------------------------------------------------------
+$baseW = [int]$gpu.CurrentHorizontalResolution
+$baseH = [int]$gpu.CurrentVerticalResolution
+if ($baseW -le 0 -or $baseH -le 0) { $baseW = 1920; $baseH = 1080 }
+$refresh = [int]$gpu.CurrentRefreshRate
+if ($refresh -le 1) { $refresh = 0 }
+
+# --- Quality: preset, benchmark, or your own values ---------------------------------------------
+# Preset bitrates are for 1440p at the preset's frame rate and scale with size and frame rate,
+# like the Linux clipper's (bench\clipperbench.py).
+$presets = @{
+    compact  = @{ fps = 60;  mbps = 30;  maxH = 1080 }
+    balanced = @{ fps = 60;  mbps = 0 }
+    high     = @{ fps = 60;  mbps = 60;  native = $true }
+    max      = @{ fps = 60;  mbps = 120; native = $true }
+    smooth   = @{ fps = 120; mbps = 90;  native = $true }
+}
+function Scale-Kbps($mbps, $w, $h, $f, $baseFps) {
+    [int]([math]::Round($mbps * [math]::Pow(($w * $h * $f) / (2560.0 * 1440 * $baseFps), 0.8)) * 1000)
+}
+$picked = $null
+if ($Bench) {
+    function Find-Python {
+        foreach ($c in 'py', 'python', 'python3') {
+            $cmd = Get-Command $c -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($cmd) {   # (the Microsoft Store's python.exe stub prints nothing here)
+                $ok = & $cmd.Source -c 'import sys; print(sys.version_info >= (3, 11))' 2>$null
+                if ("$ok".Trim() -eq 'True') { return $cmd.Source }
+            }
+        }
+    }
+    $py = Find-Python
+    if (-not $py) {
+        Step 'Installing Python with winget (for the benchmark)'
+        winget install --id Python.Python.3.12 --exact --silent --accept-package-agreements --accept-source-agreements | Out-Host
+        $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
+        $py = Find-Python
+    }
+    if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+        Step 'Installing FFmpeg with winget (for the benchmark)'
+        winget install --id Gyan.FFmpeg --exact --silent --accept-package-agreements --accept-source-agreements | Out-Host
+        $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    }
+    if (-not $py -or -not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { throw 'The benchmark needs Python 3.11+ and FFmpeg; install them and re-run.' }
+    $benchPy = Join-Path $PSScriptRoot '..\bench\clipperbench.py'
+    $benchArgs = @($benchPy, $Bench, '--capture', 'ddagrab', '--json')
+    if ($Fps) { $benchArgs += @('--fps', "$Fps") }
+    Step "Benchmarking for '$Bench': start your game now, the recording starts in 10 s (8 s of play)"
+    $json = & $py @benchArgs
+    if ($LASTEXITCODE -ne 0 -or -not $json) { throw 'The benchmark found no usable setting (see above). Re-run without -Bench, or with -Quality.' }
+    $picked = ($json | Out-String | ConvertFrom-Json).pick
+    if (-not $picked) { throw 'The benchmark found no usable setting.' }
+    Write-Host ("    pick: {0} {1}x{2} {3} fps {4} Mbit/s (VMAF {5}, worst 5% {6})" -f $picked.codec, $picked.width, $picked.height, $picked.fps, ($picked.kbps / 1000), $picked.mean, $picked.p5)
+}
+
+$p = if ($Quality) { $presets[$Quality] } else { $presets.balanced }
+$usePreset = $Quality -and $p.mbps
+if ($picked) {
+    $outW = [int]$picked.width; $outH = [int]$picked.height
+    if (-not $Fps) { $Fps = [int]$picked.fps }
+    if (-not $Bitrate) { $Bitrate = [int]$picked.kbps }
+    if (-not $Encoder -and $vendor -ne 'x264') { $Encoder = $encoders[$vendor][$picked.codec] }
+} else {
+    if ($Native -or $p.native) { $outW = $baseW; $outH = $baseH } else { $outW = 1920; $outH = 1080 }
+    if ($p.maxH -and $outH -gt $p.maxH -and -not $Native) { $outW = [int]([math]::Round($baseW * $p.maxH / $baseH / 2) * 2); $outH = $p.maxH }
+    if ($outH -gt $baseH) { $outW = $baseW; $outH = $baseH }
+    if (-not $Fps) {
+        $Fps = $p.fps
+        if ($refresh -and $Fps -gt $refresh) { $Fps = $refresh }   # more than the screen shows would only repeat frames
+    }
+}
 if (-not $Encoder) {
     if ($vendor -eq 'x264') { $Encoder = 'obs_x264' }
     elseif ($av1) { $Encoder = $encoders[$vendor].av1 }
     else { $Encoder = $encoders[$vendor].hevc }
 }
-
-# --- Resolution --------------------------------------------------------------------------------
-$baseW = [int]$gpu.CurrentHorizontalResolution
-$baseH = [int]$gpu.CurrentVerticalResolution
-if ($baseW -le 0 -or $baseH -le 0) { $baseW = 1920; $baseH = 1080 }
-if ($Native) { $outW = $baseW; $outH = $baseH } else { $outW = 1920; $outH = 1080 }
 if (-not $Bitrate) {
-    if ($Encoder -match 'av1')                 { $Bitrate = 30000 }
-    elseif ($Encoder -match 'hevc|h265')       { $Bitrate = 40000 }
-    else                                       { $Bitrate = 50000 }
-    if ($outW * $outH -gt 1920 * 1080) { $Bitrate = [int]($Bitrate * $outW * $outH / (1920 * 1080) * 0.8) }
+    if ($usePreset) {
+        $Bitrate = Scale-Kbps $p.mbps $outW $outH $Fps $p.fps
+    } else {
+        if ($Encoder -match 'av1')                 { $Bitrate = 30000 }
+        elseif ($Encoder -match 'hevc|h265')       { $Bitrate = 40000 }
+        else                                       { $Bitrate = 50000 }
+        if ($outW * $outH -gt 1920 * 1080) { $Bitrate = [int]($Bitrate * $outW * $outH / (1920 * 1080) * 0.8) }
+        if ($Fps -gt 60) { $Bitrate = [int]($Bitrate * [math]::Pow($Fps / 60.0, 0.8)) }
+    }
 }
-Step "GPU: $gpuName -> encoder $Encoder @ $Bitrate kbps, canvas ${baseW}x${baseH} -> ${outW}x${outH} 60 fps"
+# the replay buffer holds 90 s in memory: give it room for the video and four audio tracks
+$rbMB = [math]::Max(1024, [int][math]::Ceiling(($Bitrate + 704) * 90 / 8 / 1000 * 1.25))
+Step "GPU: $gpuName -> encoder $Encoder @ $Bitrate kbps, canvas ${baseW}x${baseH} -> ${outW}x${outH} $Fps fps (buffer up to $rbMB MB)"
 
 # --- OBS profile ---------------------------------------------------------------------------------
 $profileDir = Join-Path $ObsDir "basic\profiles\$Name"
@@ -166,7 +247,7 @@ Track3Bitrate=160
 Track4Bitrate=160
 RecRB=true
 RecRBTime=90
-RecRBSize=1024
+RecRBSize=$rbMB
 RecRBPrefix=Replay
 
 [Video]
@@ -174,8 +255,9 @@ BaseCX=$baseW
 BaseCY=$baseH
 OutputCX=$outW
 OutputCY=$outH
-FPSType=0
+FPSType=1
 FPSCommon=60
+FPSInt=$Fps
 ScaleType=bicubic
 ColorFormat=NV12
 ColorSpace=709

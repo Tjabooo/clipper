@@ -26,7 +26,37 @@ cmdkey /add:myserver /user:myserver\me /pass          # once, if the share needs
 .\windows\install.ps1 -Share \\myserver\Clips          # 1080p60
 .\windows\install.ps1 -Share \\myserver\Clips -Native  # record at the monitor's resolution
 .\windows\install.ps1 -MarqueeUrl http://myserver:8080 # optional: tray "Open Marquee" 
+.\windows\install.ps1 -Quality high                   # compact, balanced (default), high, max, smooth
+.\windows\install.ps1 -Bench smooth                   # measure this PC and use what it picks
 ```
+
+Or without a clone, in PowerShell:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Tjabooo/clipper/main/install.ps1))) -Share \\myserver\Clips -Quality high
+```
+
+### Quality
+
+| `-Quality` | |
+| --- | --- |
+| `compact` | 1080p60 at ~20 Mbit/s: small files that stream well to phones |
+| `balanced` (default) | 1080p60, 30 Mbit/s AV1 / 40 HEVC / 50 H.264 (`-Native`: scaled up for the monitor) |
+| `high` | native resolution, 60 fps, 60 Mbit/s at 1440p |
+| `max` | native resolution, 60 fps, 120 Mbit/s at 1440p: visually lossless |
+| `smooth` | native resolution, 120 fps (capped at the refresh rate), 90 Mbit/s at 1440p |
+
+Bitrates scale with the resolution and frame rate. `-Fps`, `-Bitrate`, `-Native` and `-Encoder`
+override the preset. The replay buffer's memory cap grows to fit 90 s at that bitrate.
+
+**`-Bench quality|smooth|balanced|small`** runs [the benchmark](../README.md#benchmark-let-it-pick)
+before writing the OBS profile: start a game, and after a 10 s countdown it records 8 s of you
+playing (FFmpeg's Desktop Duplication capture), re-encodes it at each candidate setting with your
+GPU's encoder, scores them with VMAF, and uses the pick (codec, frame rate, resolution, bitrate).
+It installs Python and FFmpeg with winget if they're missing. Close OBS first; nothing else should
+be encoding video while it runs. To test a recording you already have instead:
+`py bench\clipperbench.py quality --sample <file.mp4>`, then pass the result with `-Encoder`,
+`-Bitrate` and `-Fps`.
 
 `install.ps1` is safe to re-run and needs no admin rights. Each run:
 
@@ -35,8 +65,9 @@ cmdkey /add:myserver /user:myserver\me /pass          # once, if the share needs
 3. Detects the GPU and picks its best hardware encoder: AMD AMF AV1 on RX 7000/9000
    (`av1_texture_amf`), otherwise HEVC; NVENC AV1/HEVC on NVIDIA; QSV on Intel;
    x264 as the last resort. Override with `-Encoder <obs id> -Bitrate <kbps>`.
-4. Writes the OBS profile **Clipper**: Advanced output, MP4, CBR 30 Mbps (AV1 1080p60),
-   **keyframe every 1 s**, 4 audio tracks (all mixed, game, Discord, mic), replay buffer 90 s (1 GB memory cap), and writes into
+4. Writes the OBS profile **Clipper**: Advanced output, MP4, CBR at the [quality](#quality) you
+   picked (default 30 Mbps AV1 1080p60),
+   **keyframe every 1 s**, 4 audio tracks (all mixed, game, Discord, mic), replay buffer 90 s (memory cap sized for the bitrate, at least 1 GB), and writes into
    `%LOCALAPPDATA%\clipper\recordings`.
 5. Writes the OBS scene collection **Clipper** (sources listed below).
 6. Turns on obs-websocket (port 4455, password auth; an existing password is kept).
