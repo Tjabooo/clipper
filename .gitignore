@@ -4,3 +4,4 @@ obj/
 *.user
 # transcripts from scripts re-run outside an app package
 .Clipper-*.log
+__pycache__/
