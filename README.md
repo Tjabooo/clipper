@@ -136,4 +136,4 @@ moved, the clipboard is updated to point at the server copy.
 
 ## License
 
-MIT
+[MIT](LICENSE)
