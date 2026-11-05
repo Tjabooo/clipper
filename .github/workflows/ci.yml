@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Compile clipper
+      - name: Syntax-check clipper
         run: python -c "import ast, sys; ast.parse(open('linux/clipper').read(), 'linux/clipper')"
       - name: Check shell scripts
         run: sh -n linux/install.sh
