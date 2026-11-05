@@ -16,10 +16,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Syntax-check clipper
-        run: python -c "import ast, sys; ast.parse(open('linux/clipper').read(), 'linux/clipper')"
+      - name: Compile clipper and the benchmark
+        run: |
+          python -c "compile(open('linux/clipper').read(), 'linux/clipper', 'exec')"
+          python -m py_compile bench/clipperbench.py
+          python bench/clipperbench.py --help > /dev/null
       - name: Check shell scripts
-        run: sh -n linux/install.sh
+        run: sh -n linux/install.sh && sh -n install.sh
 
   windows:
     runs-on: windows-latest
