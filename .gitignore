@@ -1,5 +1,5 @@
-bin/
-obj/
+/windows/**/bin/
+/windows/**/obj/
 .vs/
 *.user
 # transcripts from scripts re-run outside an app package
