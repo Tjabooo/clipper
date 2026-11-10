@@ -159,7 +159,13 @@ if ($Bench) {
         New-Item -ItemType Directory -Force $Bin | Out-Null
         Step 'Downloading clipper-bench'
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-        Invoke-WebRequest "https://github.com/$repo/releases/latest/download/clipper-bench-x86_64-windows.exe" -OutFile $exe -UseBasicParsing
+        $release = if ($env:CLIPPER_REF -match '^v\d') { "download/$($env:CLIPPER_REF)" } else { 'latest/download' }
+        Invoke-WebRequest "https://github.com/$repo/releases/$release/clipper-bench-x86_64-windows.exe" -OutFile $exe -UseBasicParsing
+        # CLIPPER_BENCH_SHA256: the exe's checksum, for installers that pin a reviewed release (Marquee)
+        if ($env:CLIPPER_BENCH_SHA256 -and (Get-FileHash $exe -Algorithm SHA256).Hash -ne $env:CLIPPER_BENCH_SHA256.ToUpper()) {
+            Remove-Item $exe -Force
+            throw 'The clipper-bench download does not match CLIPPER_BENCH_SHA256: not running it'
+        }
         return $exe
     }
     if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {

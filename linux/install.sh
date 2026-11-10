@@ -67,8 +67,14 @@ else
     bin=$(mktemp -d)
     trap 'rm -rf "$bin"' EXIT
     echo "==> Downloading clipper ($url)"
-    curl -fsSL "$url" | tar -xz -C "$bin" ||
+    curl -fsSL "$url" -o "$bin/clipper.tar.gz" ||
         { echo "install.sh: no prebuilt clipper for $(uname -m); install Rust (https://rustup.rs) and re-run" >&2; exit 1; }
+    # CLIPPER_SHA256: the tarball's checksum, for installers that pin a reviewed release (Marquee)
+    if [ -n "${CLIPPER_SHA256:-}" ]; then
+        echo "$CLIPPER_SHA256  $bin/clipper.tar.gz" | sha256sum -c --quiet - ||
+            { echo "install.sh: the clipper download doesn't match CLIPPER_SHA256: not installing it" >&2; exit 1; }
+    fi
+    tar -xzf "$bin/clipper.tar.gz" -C "$bin"
 fi
 for b in clipper clipper-bench; do
     [ -x "$bin/$b" ] || { echo "install.sh: $bin/$b is missing" >&2; exit 1; }

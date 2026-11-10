@@ -54,4 +54,5 @@ if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot 'windows\install.ps1'
 
 $pass = @{}
 foreach ($k in $PSBoundParameters.Keys) { if ($k -notin 'Ref', 'Repo') { $pass[$k] = $PSBoundParameters[$k] } }
+$env:CLIPPER_REF = $Ref; $env:CLIPPER_REPO = $Repo   # which release -Bench downloads clipper-bench from
 & (Join-Path $src 'windows\install.ps1') @pass
