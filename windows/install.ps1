@@ -19,7 +19,7 @@ param(
     [ValidateSet('', 'compact', 'balanced', 'high', 'max', 'smooth')]
     [string]$Quality,          # a preset (see README); -Fps / -Bitrate / -Native still override it
     [ValidateSet('', 'quality', 'smooth', 'balanced', 'small')]
-    [string]$Bench,            # run bench\clipperbench.py while you play and use what it picks
+    [string]$Bench,            # run clipper-bench while you play and use what it picks
     [int]$Fps,                 # frame rate (default 60; smooth: 120; capped at the refresh rate)
     [string]$Encoder,          # override the detected OBS encoder id
     [int]$Bitrate,             # kbps; default depends on encoder and resolution
@@ -131,7 +131,7 @@ if ($refresh -le 1) { $refresh = 0 }
 
 # --- Quality: preset, benchmark, or your own values ---------------------------------------------
 # Preset bitrates are for 1440p at the preset's frame rate and scale with size and frame rate,
-# like the Linux clipper's (bench\clipperbench.py).
+# like the Linux clipper's (src/quality.rs).
 $presets = @{
     compact  = @{ fps = 60;  mbps = 30;  maxH = 1080 }
     balanced = @{ fps = 60;  mbps = 0 }
@@ -144,33 +144,35 @@ function Scale-Kbps($mbps, $w, $h, $f, $baseFps) {
 }
 $picked = $null
 if ($Bench) {
-    function Find-Python {
-        foreach ($c in 'py', 'python', 'python3') {
-            $cmd = Get-Command $c -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($cmd) {   # (the Microsoft Store's python.exe stub prints nothing here)
-                $ok = & $cmd.Source -c 'import sys; print(sys.version_info >= (3, 11))' 2>$null
-                if ("$ok".Trim() -eq 'True') { return $cmd.Source }
-            }
+    # clipper-bench.exe: built with cargo from this checkout if you have Rust, else the release's
+    function Get-ClipperBench {
+        $top = Split-Path $PSScriptRoot
+        $built = Join-Path $top 'target\release\clipper-bench.exe'
+        if ((Get-Command cargo -ErrorAction SilentlyContinue) -and (Test-Path (Join-Path $top 'Cargo.toml'))) {
+            Step 'Building clipper-bench (cargo)'
+            Push-Location $top
+            try { cargo build --release --locked --bin clipper-bench | Out-Host } finally { Pop-Location }
+            if ($LASTEXITCODE -eq 0 -and (Test-Path $built)) { return $built }
         }
-    }
-    $py = Find-Python
-    if (-not $py) {
-        Step 'Installing Python with winget (for the benchmark)'
-        winget install --id Python.Python.3.12 --exact --silent --accept-package-agreements --accept-source-agreements | Out-Host
-        $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
-        $py = Find-Python
+        $repo = if ($env:CLIPPER_REPO) { $env:CLIPPER_REPO } else { 'Tjabooo/clipper' }
+        $exe = Join-Path $Bin 'clipper-bench.exe'
+        New-Item -ItemType Directory -Force $Bin | Out-Null
+        Step 'Downloading clipper-bench'
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest "https://github.com/$repo/releases/latest/download/clipper-bench-x86_64-windows.exe" -OutFile $exe -UseBasicParsing
+        return $exe
     }
     if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
         Step 'Installing FFmpeg with winget (for the benchmark)'
         winget install --id Gyan.FFmpeg --exact --silent --accept-package-agreements --accept-source-agreements | Out-Host
         $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
     }
-    if (-not $py -or -not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { throw 'The benchmark needs Python 3.11+ and FFmpeg; install them and re-run.' }
-    $benchPy = Join-Path $PSScriptRoot '..\bench\clipperbench.py'
-    $benchArgs = @($benchPy, $Bench, '--capture', 'ddagrab', '--json')
+    if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { throw 'The benchmark needs FFmpeg; install it and re-run.' }
+    $benchExe = Get-ClipperBench
+    $benchArgs = @($Bench, '--capture', 'ddagrab', '--json')
     if ($Fps) { $benchArgs += @('--fps', "$Fps") }
     Step "Benchmarking for '$Bench': start your game now, the recording starts in 10 s (8 s of play)"
-    $json = & $py @benchArgs
+    $json = & $benchExe @benchArgs
     if ($LASTEXITCODE -ne 0 -or -not $json) { throw 'The benchmark found no usable setting (see above). Re-run without -Bench, or with -Quality.' }
     $picked = ($json | Out-String | ConvertFrom-Json).pick
     if (-not $picked) { throw 'The benchmark found no usable setting.' }

@@ -6,14 +6,16 @@
 #
 # Options are linux/install.sh's (--yes, --server-dir/--marquee DIR, --quality PRESET|bench:GOAL,
 # --monitor NAME, --no-start). CLIPPER_REF picks a branch or tag (default main).
+# It builds clipper with cargo if you have Rust, else it downloads the prebuilt binaries.
 # On Windows, use install.ps1 instead (see README).
 set -eu
 repo=${CLIPPER_REPO:-Tjabooo/clipper}
 ref=${CLIPPER_REF:-main}
+export CLIPPER_REPO=$repo CLIPPER_REF=$ref
 
 # run from a checkout: no download
 here=$(dirname "$0")
-if [ -f "$here/linux/install.sh" ] && [ -f "$here/bench/clipperbench.py" ]; then
+if [ -f "$here/linux/install.sh" ] && [ -f "$here/Cargo.toml" ]; then
     exec sh "$here/linux/install.sh" "$@"
 fi
 case "$(uname -s)" in

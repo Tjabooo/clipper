@@ -53,10 +53,11 @@ override the preset. The replay buffer's memory cap grows to fit 90 s at that bi
 before writing the OBS profile: start a game, and after a 10 s countdown it records 8 s of you
 playing (FFmpeg's Desktop Duplication capture), re-encodes it at each candidate setting with your
 GPU's encoder, scores them with VMAF, and uses the pick (codec, frame rate, resolution, bitrate).
-It installs Python and FFmpeg with winget if they're missing. Close OBS first; nothing else should
-be encoding video while it runs. To test a recording you already have instead:
-`py bench\clipperbench.py quality --sample <file.mp4>`, then pass the result with `-Encoder`,
-`-Bitrate` and `-Fps`.
+It installs FFmpeg with winget if it's missing, and uses `clipper-bench.exe` (built with cargo if you
+have Rust, else downloaded from the latest release). Close OBS first; nothing else should be encoding
+video while it runs. To test a recording you already have instead:
+`clipper-bench.exe quality --sample <file.mp4>`, then pass the result with `-Encoder`, `-Bitrate`
+and `-Fps`.
 
 `install.ps1` is safe to re-run and needs no admin rights. Each run:
 
@@ -206,9 +207,9 @@ real hotkey. It then waits for the clip to show up under `<share>\Kept\` and che
 It saves that OBS frame to `%TEMP%\clipper-test-frame.png`. The test starts and stops the buffer
 itself over obs-websocket; Clipper leaves alone any buffer it didn't start.
 
-## Why C# and not Python
+## Why C#
 
-Most gaming PCs already have the Windows Desktop runtime, and not Python. A .NET tray app is a single small exe, with no interpreter or venv that can break at login.
+Most gaming PCs already have the Windows Desktop runtime. A .NET tray app is a single small exe, with no interpreter or venv that can break at login.
 The tray icon, toasts (`NotifyIcon`), the global hotkey (`RegisterHotKey`, not a keyboard hook),
 exe version info and the websocket client are all built into .NET, so there are no NuGet
 packages.

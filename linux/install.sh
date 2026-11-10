@@ -31,31 +31,59 @@ while [ $# -gt 0 ]; do
 done
 
 missing=""
-for tool in python3 gpu-screen-recorder gsr-cli ffmpeg ffprobe mpv notify-send; do
+for tool in gpu-screen-recorder gsr-cli ffmpeg ffprobe mpv notify-send; do
     command -v "$tool" >/dev/null || missing="$missing $tool"
 done
 if [ -n "$missing" ]; then
     echo "clipper needs:$missing" >&2
     if command -v pacman >/dev/null; then
-        echo "  Arch: sudo pacman -S --needed python ffmpeg mpv libnotify gpu-screen-recorder" >&2
+        echo "  Arch: sudo pacman -S --needed ffmpeg mpv libnotify gpu-screen-recorder" >&2
     elif command -v apt-get >/dev/null; then
-        echo "  Debian/Ubuntu: sudo apt install python3 ffmpeg mpv libnotify-bin, and gpu-screen-recorder" >&2
+        echo "  Debian/Ubuntu: sudo apt install ffmpeg mpv libnotify-bin, and gpu-screen-recorder" >&2
         echo "  from Flathub or https://git.dec05eba.com/gpu-screen-recorder/about/" >&2
     elif command -v dnf >/dev/null; then
-        echo "  Fedora: sudo dnf install python3 ffmpeg mpv libnotify, and gpu-screen-recorder (COPR)" >&2
+        echo "  Fedora: sudo dnf install ffmpeg mpv libnotify, and gpu-screen-recorder (COPR)" >&2
     fi
     exit 1
 fi
-python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))' || { echo "clipper needs Python 3.11+" >&2; exit 1; }
-bench=$src/../bench/clipperbench.py
-[ -f "$bench" ] || { echo "install.sh: $bench is missing (run it from a full clipper checkout)" >&2; exit 1; }
+
+# The clipper and clipper-bench binaries: CLIPPER_BINARY_DIR if you built them elsewhere, else
+# cargo builds them from this checkout, else they come from the latest GitHub release.
+top=$(cd "$src/.." && pwd)
+repo=${CLIPPER_REPO:-Tjabooo/clipper}
+if [ -n "${CLIPPER_BINARY_DIR:-}" ]; then
+    bin=$CLIPPER_BINARY_DIR
+elif command -v cargo >/dev/null && [ -f "$top/Cargo.toml" ]; then
+    echo "==> Building clipper (cargo build --release)"
+    (cd "$top" && cargo build --release --locked --quiet)
+    bin=$top/target/release
+else
+    command -v curl >/dev/null || { echo "install.sh: needs Rust (https://rustup.rs) or curl to get clipper" >&2; exit 1; }
+    case "${CLIPPER_REF:-}" in
+        v[0-9]*) release="download/$CLIPPER_REF" ;;
+        *) release="latest/download" ;;
+    esac
+    url="https://github.com/$repo/releases/$release/clipper-$(uname -m)-linux.tar.gz"
+    bin=$(mktemp -d)
+    trap 'rm -rf "$bin"' EXIT
+    echo "==> Downloading clipper ($url)"
+    curl -fsSL "$url" | tar -xz -C "$bin" ||
+        { echo "install.sh: no prebuilt clipper for $(uname -m); install Rust (https://rustup.rs) and re-run" >&2; exit 1; }
+fi
+for b in clipper clipper-bench; do
+    [ -x "$bin/$b" ] || { echo "install.sh: $bin/$b is missing" >&2; exit 1; }
+done
 
 mkdir -p "$dest" "$HOME/.local/bin" "$HOME/.config/systemd/user"
-cp "$src/clipper" "$src/trim.lua" "$src/config.example.toml" "$bench" "$dest/"
+# copy, then rename: a running replay buffer keeps its old binary until it restarts
+for b in clipper clipper-bench; do
+    cp "$bin/$b" "$dest/.$b.new" && chmod +x "$dest/.$b.new" && mv -f "$dest/.$b.new" "$dest/$b"
+done
+cp "$src/trim.lua" "$src/config.example.toml" "$dest/"
 rm -rf "$dest/eww" && cp -r "$src/eww" "$dest/eww"
-chmod +x "$dest/clipper" "$dest/clipperbench.py"
+rm -f "$dest/clipperbench.py"   # from the Python version
 ln -sf "$dest/clipper" "$HOME/.local/bin/clipper"
-ln -sf "$dest/clipperbench.py" "$HOME/.local/bin/clipper-bench"
+ln -sf "$dest/clipper-bench" "$HOME/.local/bin/clipper-bench"
 cp "$src"/systemd/clipper-* "$HOME/.config/systemd/user/"
 "$dest/clipper" config >/dev/null
 systemctl --user daemon-reload

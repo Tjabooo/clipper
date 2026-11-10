@@ -52,11 +52,13 @@ hourly: unreviewed clips older than retention_days → trash; trash older than t
 
 - [gpu-screen-recorder](https://git.dec05eba.com/gpu-screen-recorder/about/) **6+** (it includes
   `gsr-cli`). It works with AMD, Intel and NVIDIA, on Wayland and X11.
-- Python 3.11+, ffmpeg, mpv (0.38+ for the trimmer's name prompt), libnotify, PipeWire or PulseAudio.
+- ffmpeg, mpv (0.38+ for the trimmer's name prompt), libnotify, PipeWire or PulseAudio.
+- To build from source: Rust 1.85+ ([rustup](https://rustup.rs)). Without it, the installer
+  downloads the prebuilt `clipper` and `clipper-bench` from the latest release (x86_64 and aarch64).
 - Optional: [eww](https://github.com/elkowar/eww) for the review overlay, wl-clipboard for
   copy-to-Discord, Hyprland or sway so clips are named after the game.
 
-Arch: `sudo pacman -S --needed gpu-screen-recorder python ffmpeg mpv libnotify wl-clipboard` (eww: AUR)
+Arch: `sudo pacman -S --needed gpu-screen-recorder ffmpeg mpv libnotify wl-clipboard rust` (eww: AUR)
 
 ### Install
 
@@ -233,6 +235,27 @@ moved, the clipboard is updated to point at the server copy.
 - Monitor capture (`screen`, `DP-1`) uses gpu-screen-recorder's KMS helper, which the package sets
   up; with `window = "portal"` your desktop asks which screen to share instead.
 - Retention never touches `Kept/` or `Trimmed Clips/`.
+
+## Building
+
+clipper and clipper-bench are one Rust crate. Each command starts in about a millisecond, so Waybar
+polling and the save key cost nothing; ffmpeg and gpu-screen-recorder do the heavy work.
+
+```sh
+cargo build --release          # target/release/clipper and clipper-bench
+cargo test && cargo clippy --all-targets -- -D warnings
+CLIPPER_BINARY_DIR=target/release ./install.sh --yes   # install binaries you built elsewhere
+```
+
+| Path | |
+| --- | --- |
+| `src/bin/clipper.rs` | the Linux replay buffer, review queue, trimmer exports, sync and retention |
+| `src/bench.rs` | the benchmark (`clipper bench`, `clipper-bench`; Linux and Windows) |
+| `src/quality.rs` | presets, goals, what a `[record]` table works out to, monitors |
+| `src/tomledit.rs` | changes config keys while keeping your comments |
+
+`clipper-bench settings|presets|set-toml` expose the presets and the config editing as JSON for
+other scripts (see `clipper-bench --help`). Tagging `v*` builds the release binaries in CI.
 
 ## License
 
