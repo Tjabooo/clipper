@@ -59,8 +59,10 @@ elif command -v cargo >/dev/null && [ -f "$top/Cargo.toml" ]; then
     bin=$top/target/release
 else
     command -v curl >/dev/null || { echo "install.sh: needs Rust (https://rustup.rs) or curl to get clipper" >&2; exit 1; }
-    case "${CLIPPER_REF:-}" in
-        v[0-9]*) release="download/$CLIPPER_REF" ;;
+    # CLIPPER_RELEASE (a v* tag) picks the release; else a v* CLIPPER_REF; else the latest
+    tag=${CLIPPER_RELEASE:-${CLIPPER_REF:-}}
+    case "$tag" in
+        v[0-9]*) release="download/$tag" ;;
         *) release="latest/download" ;;
     esac
     url="https://github.com/$repo/releases/$release/clipper-$(uname -m)-linux.tar.gz"
@@ -69,10 +71,14 @@ else
     echo "==> Downloading clipper ($url)"
     curl -fsSL "$url" -o "$bin/clipper.tar.gz" ||
         { echo "install.sh: no prebuilt clipper for $(uname -m); install Rust (https://rustup.rs) and re-run" >&2; exit 1; }
-    # CLIPPER_SHA256: the tarball's checksum, for installers that pin a reviewed release (Marquee)
+    # CLIPPER_SHA256: the allowed tarball checksums (space or comma separated, one per architecture),
+    # for installers that pin a reviewed release (Marquee)
     if [ -n "${CLIPPER_SHA256:-}" ]; then
-        echo "$CLIPPER_SHA256  $bin/clipper.tar.gz" | sha256sum -c --quiet - ||
-            { echo "install.sh: the clipper download doesn't match CLIPPER_SHA256: not installing it" >&2; exit 1; }
+        got=$(sha256sum "$bin/clipper.tar.gz" | cut -d' ' -f1)
+        case " $(printf %s "$CLIPPER_SHA256" | tr ',' ' ') " in
+            *" $got "*) ;;
+            *) echo "install.sh: the clipper download doesn't match CLIPPER_SHA256: not installing it" >&2; exit 1 ;;
+        esac
     fi
     tar -xzf "$bin/clipper.tar.gz" -C "$bin"
 fi
