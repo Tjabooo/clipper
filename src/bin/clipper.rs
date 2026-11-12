@@ -49,7 +49,7 @@ clipper: a replay buffer and clip archive for Linux (gpu-screen-recorder).
   clipper bench [GOAL] [OPTIONS]   measure this PC and pick the settings for GOAL: quality, smooth,
                                    balanced or small (clipper bench --help); saves them to the config
   clipper setup [--yes] [--monitor NAME] [--quality PRESET|bench[:GOAL]] [--server-dir DIR]
-                                   pick monitor, quality and where kept clips go (e.g. Marquee's share)
+                                   pick monitor, quality and where kept clips go (e.g. Lilin's share)
 
 New clips wait in the review queue. keep moves the clip to <dir>/Kept/<game>/, share makes an H.264
 copy with all audio tracks mixed into one and copies it for pasting into Discord, trim opens the
@@ -502,7 +502,7 @@ not_games = []
         // ── commands ─────────────────────────────────────────────────────────────────────────────
 
         /// gsr writes the MP4 index (moov) at the end; move it to the front with a stream copy
-        /// (lossless) so a browser (Marquee's Clips tab) can start a ~1 GB clip without first
+        /// (lossless) so a browser (Lilin's Clips tab) can start a ~1 GB clip without first
         /// fetching its tail. Low CPU/IO priority; on any failure the original is left as it was.
         fn faststart(&self, p: &Path) {
             let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -1225,7 +1225,7 @@ not_games = []
                 args.extend(["-q".into(), q.quality.clone()]);
             }
             // AV1 from AMD/Intel comes out as one tile, which software decoders (browsers without
-            // AV1 hardware, e.g. Marquee's Clips tab on a phone or laptop) can only decode on one
+            // AV1 hardware, e.g. Lilin's Clips tab on a phone or laptop) can only decode on one
             // core: 4x4 tiles decode ~2-3x faster for <1 % more size.
             let extra = as_strings(r.get("extra_args"));
             let tiles = match r.get("av1_tiles") {
@@ -1521,7 +1521,7 @@ not_games = []
                     "--yes" | "-y" => yes = true,
                     "--monitor" => monitor = Some(it.next().cloned().unwrap_or_default()),
                     "--quality" => choice = Some(it.next().cloned().unwrap_or_default()),
-                    "--server-dir" | "--marquee" => server = Some(it.next().cloned().unwrap_or_default()),
+                    "--server-dir" | "--lilin" => server = Some(it.next().cloned().unwrap_or_default()),
                     _ => die(format!("clipper: unknown option {flag}")),
                 }
             }
@@ -1575,7 +1575,7 @@ not_games = []
             }
 
             if server.is_none() && interactive {
-                println!("\nKept clips and trims can move to a folder on your server, e.g. the share Marquee's");
+                println!("\nKept clips and trims can move to a folder on your server, e.g. the share Lilin's");
                 println!("Clips tab watches (its CLIPS_DIR), mounted here. Empty = keep them on this PC.");
                 server = Some(Self::ask("Clips folder on the server", &as_text(self.get("clips", "server_dir"))));
             }

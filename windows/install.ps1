@@ -14,7 +14,7 @@
 [CmdletBinding()]
 param(
     [string]$Share,            # \\server\share the clips go to (<share>\Kept\<Game>\); kept from the last run
-    [string]$MarqueeUrl,       # optional: a page the tray's "Open Marquee" opens (e.g. http://myserver:8080)
+    [string]$LilinUrl,       # optional: a page the tray's "Open Lilin" opens (e.g. http://myserver:8080)
     [switch]$Native,
     [ValidateSet('', 'compact', 'balanced', 'high', 'max', 'smooth')]
     [string]$Quality,          # a preset (see README); -Fps / -Bitrate / -Native still override it
@@ -162,7 +162,7 @@ if ($Bench) {
         $tag = if ($env:CLIPPER_RELEASE) { $env:CLIPPER_RELEASE } else { $env:CLIPPER_REF }
         $release = if ($tag -match '^v\d') { "download/$tag" } else { 'latest/download' }
         Invoke-WebRequest "https://github.com/$repo/releases/$release/clipper-bench-x86_64-windows.exe" -OutFile $exe -UseBasicParsing
-        # CLIPPER_BENCH_SHA256: the exe's checksum, for installers that pin a reviewed release (Marquee)
+        # CLIPPER_BENCH_SHA256: the exe's checksum, for installers that pin a reviewed release (Lilin)
         if ($env:CLIPPER_BENCH_SHA256 -and (Get-FileHash $exe -Algorithm SHA256).Hash -ne $env:CLIPPER_BENCH_SHA256.ToUpper()) {
             Remove-Item $exe -Force
             throw 'The clipper-bench download does not match CLIPPER_BENCH_SHA256: not running it'
@@ -277,7 +277,7 @@ SampleRate=48000
 ChannelSetup=Stereo
 "@
 
-# keyint_sec=1: marquee trims with stream copy, so trims start on a keyframe (<= 1 s early).
+# keyint_sec=1: lilin trims with stream copy, so trims start on a keyframe (<= 1 s early).
 $enc = [ordered]@{ rate_control = 'CBR'; bitrate = $Bitrate; keyint_sec = 1 }
 switch -Regex ($Encoder) {
     'amf'   { $enc.preset = 'quality' }
@@ -296,7 +296,7 @@ function New-Source($id, $name, $settings, $mixers) {
     }
 }
 # Audio tracks (mixers bitmask: track 1 = 1, 2 = 2, 3 = 4, 4 = 8), same layout as the Arch desktop:
-#   1 All (game + Discord + mic: what browsers, Discord and marquee's Clips tab play, since they
+#   1 All (game + Discord + mic: what browsers, Discord and lilin's Clips tab play, since they
 #     only ever play the first track)   2 Game   3 Discord   4 Mic
 $sources = @(
     # monitor_id is filled in by the companion (primary monitor); only OBS can enumerate the ids.
@@ -365,7 +365,7 @@ if (-not ($dotnetSdks -match '^(8|9|10)\.')) {
 Step "Building the companion into $Bin"
 & dotnet publish (Join-Path $PSScriptRoot 'src\Clipper\Clipper.csproj') -c Release -o $Bin --nologo -v q | Out-Host
 if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
-& (Join-Path $Bin 'clipper.exe') --init-config --share "$Share" --marquee "$MarqueeUrl" | Out-Null
+& (Join-Path $Bin 'clipper.exe') --init-config --share "$Share" --lilin "$LilinUrl" | Out-Null
 $configured = (Get-Content (Join-Path $Root 'config.json') -Raw | ConvertFrom-Json).share
 if (-not $configured) {
     Write-Warning 'No share set yet: clips will wait in the queue. Run again with -Share \\server\share (any SMB share or folder).'

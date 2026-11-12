@@ -2,9 +2,9 @@
 # Clipper one-line install for Linux. Downloads clipper and runs linux/install.sh with your options:
 #
 #   curl -fsSL https://raw.githubusercontent.com/Tjabooo/clipper/main/install.sh | sh
-#   curl -fsSL https://raw.githubusercontent.com/Tjabooo/clipper/main/install.sh | sh -s -- --marquee /mnt/clips --quality high
+#   curl -fsSL https://raw.githubusercontent.com/Tjabooo/clipper/main/install.sh | sh -s -- --lilin /mnt/clips --quality high
 #
-# Options are linux/install.sh's (--yes, --server-dir/--marquee DIR, --quality PRESET|bench:GOAL,
+# Options are linux/install.sh's (--yes, --server-dir/--lilin DIR, --quality PRESET|bench:GOAL,
 # --monitor NAME, --no-start). CLIPPER_REF picks a branch or tag (default main).
 # It builds clipper with cargo if you have Rust, else it downloads the prebuilt binaries.
 # On Windows, use install.ps1 instead (see README).

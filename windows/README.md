@@ -2,7 +2,7 @@
 
 A lightweight Medal replacement for Windows. OBS keeps a 90 s replay buffer running while a game
 is running. **Alt+F9** saves it, and the clip is copied to a share on your home server or NAS
-(for example the folder [Marquee](https://github.com/Tjabooo/marquee)'s Clips tab watches).
+(for example the folder [Lilin](https://github.com/Tjabooo/lilin)'s Clips tab watches).
 
 ```
 Alt+F9 ─► clipper.exe ─► obs-websocket: SaveReplayBuffer
@@ -17,7 +17,7 @@ clipper renames + moves it ─► %LOCALAPPDATA%\clipper\queue\<Game>\<Game> YYY
 
 Recording matches the [Linux clipper](../README.md): a 90 s buffer at 60 fps with a mixed first track
 (game + Discord + mic) plus separate tracks for each. Trimming happens wherever the clips end up
-(Marquee has a trimmer), not here.
+(Lilin has a trimmer), not here.
 
 ## Install
 
@@ -25,7 +25,7 @@ Recording matches the [Linux clipper](../README.md): a 90 s buffer at 60 fps wit
 cmdkey /add:myserver /user:myserver\me /pass          # once, if the share needs a login
 .\windows\install.ps1 -Share \\myserver\Clips          # 1080p60
 .\windows\install.ps1 -Share \\myserver\Clips -Native  # record at the monitor's resolution
-.\windows\install.ps1 -MarqueeUrl http://myserver:8080 # optional: tray "Open Marquee" 
+.\windows\install.ps1 -LilinUrl http://myserver:8080 # optional: tray "Open Lilin" 
 .\windows\install.ps1 -Quality high                   # compact, balanced (default), high, max, smooth
 .\windows\install.ps1 -Bench smooth                   # measure this PC and use what it picks
 ```
@@ -91,7 +91,7 @@ Close OBS first, or pass `-Force` to kill it.
 | **Save a clip** | **Alt+F9**. You get a toast when the clip reaches the share ("Clip saved → share"). |
 | Change the hotkey | Edit `"hotkey"` in `%LOCALAPPDATA%\clipper\config.json` (e.g. `"Ctrl+Shift+F9"`), then Quit from the tray and run `Start-ScheduledTask Clipper` (or log in again). |
 | Tray icon | grey = idle, red = buffer recording, amber = paused or waiting for OBS |
-| Tray menu | Save clip · Open queue folder · Open Marquee (if `marqueeUrl` is set) · Open log · Pause clipping · Quit |
+| Tray menu | Save clip · Open queue folder · Open Lilin (if `lilinUrl` is set) · Open log · Pause clipping · Quit |
 
 **When the buffer runs.** OBS is started minimized to the tray, and the buffer runs only while a
 game is running:
@@ -115,7 +115,7 @@ from:
    just a file name like `Notepad.exe` is skipped.
 
 **Never lose a clip.** A clip leaves the local queue only after the copy on the share has the
-same size. It's copied as `….mp4.part` first, which Marquee ignores, so it never indexes a
+same size. It's copied as `….mp4.part` first, which Lilin ignores, so it never indexes a
 half-written file. If the share is unreachable, clips wait in `%LOCALAPPDATA%\clipper\queue\<Game>\`
 and the queue is retried every 60 s (and right after each new save). You get one "Server
 unreachable" toast per outage. Replays OBS saved while the companion wasn't running are picked up
@@ -136,7 +136,7 @@ at the next start as `Kept\Unsorted\`.
   16:9 clip without black bars; 16:9 games are unaffected.
 - Only one of the two game captures is visible at a time; Clipper switches them, so Valorant's
   audio isn't recorded twice.
-- Track 1 mixes everything (game + Discord + mic). Browsers, Discord and Marquee's Clips tab
+- Track 1 mixes everything (game + Discord + mic). Browsers, Discord and Lilin's Clips tab
   only play the first track, so that's the one that has to have it all. Tracks 2–4 keep game,
   Discord and mic apart for editing.
 - The game track is the hooked game's own audio (Game Capture → *Capture audio*), not all desktop
@@ -145,7 +145,7 @@ at the next start as `Kept\Unsorted\`.
   the scene with only tracks 1 and 2 ticked, and turn off *Capture audio* on both game captures.
 - Display capture is the fallback for windows Game Capture doesn't hook. It's also what the
   Notepad test records.
-- Keyframe interval 1 s: Marquee trims with ffmpeg stream copy, which can only start a cut on a
+- Keyframe interval 1 s: Lilin trims with ffmpeg stream copy, which can only start a cut on a
   keyframe, so every trim starts at most 1 s early.
 
 ### Valorant / Vanguard
@@ -162,7 +162,7 @@ info from the exe file on disk.
 |---|---|---|
 | `hotkey` | `Alt+F9` | `Alt`/`Ctrl`/`Shift`/`Win` + a key name (`F9`, `S`, `1`, …) |
 | `share` | (from `-Share`) | clips go to `<share>\Kept\<Game>\` |
-| `marqueeUrl` | empty | optional page for tray → Open Marquee (and double-click) |
+| `lilinUrl` | empty | optional page for tray → Open Lilin (and double-click) |
 | `clipOtherGames` | `true` | `false`: only Valorant runs the buffer |
 | `onlyListedGames` | `false` | `true`: only exes in `games` (and Valorant) count as games |
 | `games` | Valorant, GTA V, CS2, … | exe → folder name |

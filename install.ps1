@@ -9,13 +9,13 @@
   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Tjabooo/clipper/main/install.ps1))) -Share \\myserver\Clips -Quality high
 
 .NOTES
-  Takes the same options as windows\install.ps1 (-Share, -MarqueeUrl, -Quality, -Bench, -Fps,
+  Takes the same options as windows\install.ps1 (-Share, -LilinUrl, -Quality, -Bench, -Fps,
   -Native, -Encoder, -Bitrate, -Force, -NoAutostart, -NoStart), plus -Ref (branch or tag, default main).
 #>
 [CmdletBinding()]
 param(
     [string]$Share,
-    [string]$MarqueeUrl,
+    [string]$LilinUrl,
     [ValidateSet('', 'compact', 'balanced', 'high', 'max', 'smooth')]
     [string]$Quality,
     [ValidateSet('', 'quality', 'smooth', 'balanced', 'small')]

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.1 (2026-11-12)
+
+- The media app Clipper ships clips to is now called Lilin: `--lilin DIR` (Linux) and `-LilinUrl` (Windows)
+  replace the old option names, and the tray item reads "Open Lilin".
+
 ## v0.2.0 (2026-11-10)
 
 - clipper and clipper-bench are now one Rust crate instead of Python scripts: no Python needed on

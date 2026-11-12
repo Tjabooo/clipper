@@ -23,13 +23,13 @@ curl -fsSL https://raw.githubusercontent.com/Tjabooo/clipper/main/install.sh | s
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Tjabooo/clipper/main/install.ps1))) -Share \\myserver\Clips -Quality high
 ```
 
-Already run [Marquee](https://github.com/Tjabooo/marquee)? `node setup.js clipper` on the Marquee
+Already run [Lilin](https://github.com/Tjabooo/lilin)? `node setup.js clipper` on the Lilin
 server sets up its Clips folder and installs Clipper for you, or prints these commands with your
-share filled in. See [Use with Marquee](#use-with-marquee).
+share filled in. See [Use with Lilin](#use-with-lilin).
 
 Both record the same way: track 1 is a **mix of everything** (game + voice chat + mic), because
 browsers, Discord and phones only ever play the first track. Each source then gets its own track
-for editing later. Clips can land on a share that [Marquee](https://github.com/Tjabooo/marquee)
+for editing later. Clips can land on a share that [Lilin](https://github.com/Tjabooo/lilin)
 watches, which gives you a phone-friendly Clips tab with lossless trimming and share links.
 
 ## Linux
@@ -69,12 +69,12 @@ git clone https://github.com/Tjabooo/clipper.git
 cd clipper
 ./install.sh                                        # asks: monitor, quality, server folder
 ./install.sh --yes                                  # defaults, no questions
-./install.sh --marquee /mnt/clips --quality high    # kept clips go to Marquee's share
+./install.sh --lilin /mnt/clips --quality high    # kept clips go to Lilin's share
 ./install.sh --quality bench:smooth --monitor DP-1  # measure this PC, pick the best 120+ fps setting
 ```
 
 With the one-liner, put options after `sh -s --`, e.g. `… | sh -s -- --yes --quality max`.
-`--marquee` is another name for `--server-dir`.
+`--lilin` is another name for `--server-dir`.
 
 It installs `clipper` and `clipper-bench` to `~/.local/bin`, creates `~/.config/clipper/config.toml`,
 and starts `clipper-replay.service` (it starts with your graphical session) plus an hourly
@@ -194,22 +194,22 @@ Without eww: `clipper list`, then `clipper keep|trim|share|discard <id>`.
 
 clipper sends `SIGRTMIN+12` when anything changes, so the modules update right away.
 
-### Use with Marquee
+### Use with Lilin
 
-[Marquee](https://github.com/Tjabooo/marquee) shows the clips on your server in its Clips tab:
+[Lilin](https://github.com/Tjabooo/lilin) shows the clips on your server in its Clips tab:
 phone-friendly playback, renaming, a lossless trimmer and share links. It reads a folder
-(`CLIPS_DIR` in Marquee's `.env`) laid out the way clipper writes it: `Kept/<game>/` and
+(`CLIPS_DIR` in Lilin's `.env`) laid out the way clipper writes it: `Kept/<game>/` and
 `Trimmed Clips/`. clipper copies each clip as a `.part` file and renames it when it's complete,
-so Marquee never sees half a clip. To connect the two:
+so Lilin never sees half a clip. To connect the two:
 
-1. On the Marquee server, run `node setup.js clipper`. It sets `CLIPS_DIR` (and creates it), and
+1. On the Lilin server, run `node setup.js clipper`. It sets `CLIPS_DIR` (and creates it), and
    either installs Clipper on that same machine or prints the commands for your gaming PC with the
    share path filled in.
 2. Share that folder over SMB or NFS and mount it on the gaming PC (see below), or on Windows just
    pass the `\\server\share` path to `-Share`.
-3. Install clipper with `--marquee /mnt/clips` (Linux) or `-Share \\server\Clips` (Windows).
+3. Install clipper with `--lilin /mnt/clips` (Linux) or `-Share \\server\Clips` (Windows).
 
-If Marquee and the games run on the same PC, point `--marquee` at `CLIPS_DIR` itself.
+If Lilin and the games run on the same PC, point `--lilin` at `CLIPS_DIR` itself.
 
 ### Moving clips to a server
 

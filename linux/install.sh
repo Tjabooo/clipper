@@ -4,7 +4,7 @@
 #   ./install.sh                         interactive: monitor, quality, server folder
 #   ./install.sh --yes                   defaults, no questions
 #   ./install.sh --server-dir /mnt/clips --quality high
-#   ./install.sh --marquee /mnt/clips    same as --server-dir: the share Marquee's Clips tab watches
+#   ./install.sh --lilin /mnt/clips    same as --server-dir: the share Lilin's Clips tab watches
 #   ./install.sh --quality bench:smooth  measure this PC and pick (quality, smooth, balanced, small)
 #   ./install.sh --monitor DP-1 --no-start
 #
@@ -20,10 +20,10 @@ while [ $# -gt 0 ]; do
     case "$1" in
         -y|--yes) yes=1 ;;
         --no-start) start="" ;;
-        --server-dir|--marquee|--quality|--monitor)
+        --server-dir|--lilin|--quality|--monitor)
             [ $# -ge 2 ] || { echo "install.sh: $1 needs a value" >&2; exit 2; }
             add "$1"; add "$2"; shift ;;
-        --server-dir=*|--marquee=*|--quality=*|--monitor=*) add "${1%%=*}"; add "${1#*=}" ;;
+        --server-dir=*|--lilin=*|--quality=*|--monitor=*) add "${1%%=*}"; add "${1#*=}" ;;
         -h|--help) sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "install.sh: unknown option $1 (try --help)" >&2; exit 2 ;;
     esac
@@ -72,7 +72,7 @@ else
     curl -fsSL "$url" -o "$bin/clipper.tar.gz" ||
         { echo "install.sh: no prebuilt clipper for $(uname -m); install Rust (https://rustup.rs) and re-run" >&2; exit 1; }
     # CLIPPER_SHA256: the allowed tarball checksums (space or comma separated, one per architecture),
-    # for installers that pin a reviewed release (Marquee)
+    # for installers that pin a reviewed release (Lilin)
     if [ -n "${CLIPPER_SHA256:-}" ]; then
         got=$(sha256sum "$bin/clipper.tar.gz" | cut -d' ' -f1)
         case " $(printf %s "$CLIPPER_SHA256" | tr ',' ' ') " in

@@ -36,8 +36,8 @@ sealed class Config
     public string Hotkey { get; set; } = "Alt+F9";
     // \\server\share; clips go to <share>\Kept\<Game>\.
     public string Share { get; set; } = "";
-    // Optional web page for the tray (e.g. Marquee's Clips tab); empty hides "Open Marquee".
-    public string MarqueeUrl { get; set; } = "";
+    // Optional web page for the tray (e.g. Lilin's Clips tab); empty hides "Open Lilin".
+    public string LilinUrl { get; set; } = "";
     // false: only Valorant runs the replay buffer.
     public bool ClipOtherGames { get; set; } = true;
     // true: only exes in "games" count as games (besides Valorant).

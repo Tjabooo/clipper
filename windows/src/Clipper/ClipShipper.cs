@@ -111,7 +111,7 @@ sealed class ClipShipper(Config cfg, Action<string, string, bool> notify)
             dest = UniquePath(dir, src.Name);
         }
 
-        // marquee only indexes video extensions, so it never sees a half-copied .part file.
+        // lilin only indexes video extensions, so it never sees a half-copied .part file.
         var part = dest + ".part";
         File.Copy(file, part, overwrite: true);
         var partSize = new FileInfo(part).Length;

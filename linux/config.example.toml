@@ -40,7 +40,7 @@ retention_days = 1        # unreviewed clips older than this go to the trash (Ke
 trash_days = 7            # clips in the trash for longer are deleted for good
 discord_mb = 10           # the trimmer's D export aims for 90 % of this (Discord's upload limit)
 # Move Kept/ and Trimmed Clips/ here once they're kept: e.g. an SMB/NFS mount on your home server,
-# such as the folder Marquee's Clips tab watches. Empty = they stay in `dir`.
+# such as the folder Lilin's Clips tab watches. Empty = they stay in `dir`.
 server_dir = ""
 
 [ui]
